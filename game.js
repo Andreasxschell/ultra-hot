@@ -23,27 +23,37 @@ const player={pos:new THREE.Vector3(0,8,7),vel:new THREE.Vector3(),yaw:0,pitch:0
 const keys={};let shootCD=0,punchCD=0,punchAnim=0,slideTime=0,toastTime=0,chargeTime=0,charging=false;
 const revolver=createRevolver();revolver.scale.setScalar(1.22);revolver.visible=false;revolver.renderOrder=1000;revolver.traverse(o=>{if(o.isMesh){o.renderOrder=1000;o.material=o.material.clone();o.material.depthTest=false;o.material.depthWrite=false}});
 const leftHand=new THREE.Group();camera.add(leftHand);
-const handMat=mat(0x20252c,.6,.3),gloveMat=mat(0x101319,.75),knuckleMat=mat(0x5a606b,.38,.65);
+const handMat=new THREE.MeshBasicMaterial({color:0x777d88}),gloveMat=new THREE.MeshBasicMaterial({color:0x303641}),knuckleMat=new THREE.MeshBasicMaterial({color:0xaab0bb});
 const palm=new THREE.Mesh(new THREE.BoxGeometry(.24,.18,.27),gloveMat);palm.position.set(-.02,-.04,0);leftHand.add(palm);
 const fist=new THREE.Mesh(new THREE.SphereGeometry(.13,12,10),gloveMat);fist.position.set(-.02,.015,-.09);leftHand.add(fist);
 const cuff=new THREE.Mesh(new THREE.CylinderGeometry(.105,.12,.22,8),handMat);cuff.rotation.z=Math.PI/2;cuff.position.set(.015,-.03,.16);leftHand.add(cuff);
 for(let i=0;i<4;i++){const kn=new THREE.Mesh(new THREE.SphereGeometry(.035,7,6),knuckleMat);kn.position.set(-.08+i*.045,.025,-.07);leftHand.add(kn)}
-leftHand.position.set(-.42,-.34,-.72);leftHand.visible=false;leftHand.renderOrder=1001;leftHand.traverse(o=>{if(o.isMesh){o.renderOrder=1001;o.material=o.material.clone();o.material.depthTest=false;o.material.depthWrite=false}});
+const leftForearm=new THREE.Mesh(new THREE.CapsuleGeometry(.095,.34,4,8),new THREE.MeshBasicMaterial({color:0x555c68}));leftForearm.position.set(-.02,-.16,.2);leftForearm.rotation.x=.22;leftHand.add(leftForearm);leftHand.position.set(-.48,-.38,-.82);leftHand.visible=true;leftHand.renderOrder=1001;leftHand.traverse(o=>{if(o.isMesh){o.renderOrder=1001;o.material=o.material.clone();o.material.depthTest=false;o.material.depthWrite=false}});
 // Mão direita visível segurando o revólver (viewmodel preso à câmera).
 const rightHand=new THREE.Group();camera.add(rightHand);
 const rightGlove=new THREE.MeshStandardMaterial({color:0x252a32,roughness:.72});
 const rightCuff=new THREE.Mesh(new THREE.CylinderGeometry(.105,.13,.22,10),handMat);rightCuff.rotation.z=Math.PI/2;rightCuff.position.set(0,-.035,.12);rightHand.add(rightCuff);
 const rightPalm=new THREE.Mesh(new THREE.BoxGeometry(.22,.16,.24),rightGlove);rightPalm.position.set(0,-.015,-.015);rightHand.add(rightPalm);
 for(let i=0;i<4;i++){const finger=new THREE.Mesh(new THREE.CapsuleGeometry(.027,.095,3,6),rightGlove);finger.position.set(-.075+i*.05,-.075,-.105);finger.rotation.x=-.2;rightHand.add(finger)}
-rightHand.position.set(.34,-.34,-.54);rightHand.visible=false;rightHand.renderOrder=1000;rightHand.traverse(o=>{if(o.isMesh){o.renderOrder=1000;o.material=o.material.clone();o.material.depthTest=false;o.material.depthWrite=false}});
+const rightForearm=new THREE.Mesh(new THREE.CapsuleGeometry(.10,.38,4,8),new THREE.MeshBasicMaterial({color:0x555c68}));rightForearm.position.set(0,-.15,.22);rightForearm.rotation.x=.2;rightHand.add(rightForearm);rightHand.position.set(.42,-.39,-.72);rightHand.visible=false;rightHand.renderOrder=1000;rightHand.traverse(o=>{if(o.isMesh){o.renderOrder=1000;o.material=o.material.clone();o.material.depthTest=false;o.material.depthWrite=false}});
 function toast(s,t=2){$('toast').textContent=s;$('toast').style.display='block';toastTime=t}
 function addLight(x,y,z,color,intensity=1,dist=10){const l=new THREE.PointLight(color,intensity,dist,1.6);l.position.set(x,y,z);scene.add(l);levelObjects.push(l);return l}
 function clearLevel(){for(const o of levelObjects){scene.remove(o);if(o.geometry)o.geometry.dispose()}levelObjects=[];enemyList=[];effects.forEach(e=>scene.remove(e.mesh));effects=[]}
-function makeEnemy(x,z){const e=createCreature();e.group.position.set(x,0,z);scene.add(e.group);levelObjects.push(e.group);e.phase=Math.random()*6;e.hp=3;e.speed=2.2+Math.random()*1.2;e.hit=0;e.attack=.8+Math.random();enemyList.push(e)}
+function makeEnemy(x,z){const e=createCreature();e.group.position.set(x,0,z);scene.add(e.group);levelObjects.push(e.group);e.phase=Math.random()*6;e.hp=4;e.speed=3.5+Math.random()*1.25;e.hit=0;e.attack=.65+Math.random()*.4;e.attackWindup=0;e.lunge=0;e.moving=true;e.strafe=(Math.random()-.5)*.8;enemyList.push(e)}
 function activatePower(){if(powered)return;powered=true;scene.background.set(0x777780);scene.fog.color.set(0x777078);scene.fog.density=.006;keyLight.intensity=4.2;redLight.intensity=4.8;sun.intensity=2.4;renderer.toneMappingExposure=1.38;levelObjects.forEach(o=>{if(o.isPointLight)o.intensity=Math.max(o.intensity,1.5)});$('flash').style.display='grid';setTimeout(()=>$('flash').style.display='none',3000);combat=true;spawnWave(0);toast('SISTEMA DE COMBATE ONLINE // SOBREVIVA À DESCIDA',3)}
-function spawnWave(stage){const waves={0:[[-2,-12],[2,-15],[-3,-18],[3,-20]],1:[[-5,-27],[0,-30],[5,-33],[-2,-35],[3,-37]],2:[[-6,-43],[-2,-46],[2,-45],[6,-48],[0,-51],[-4,-53]]};(waves[stage]||[]).forEach(([x,z])=>makeEnemy(x,z));toast(stage===0?'ONDA 1 // CONTATO HOSTIL':stage===1?'ONDA 2 // AVANCE PELO CORREDOR':'ONDA 3 // A ARENA ESTÁ À FRENTE',2.2)}
-function spawnAristoles(){if(boss)return;const tex=new THREE.TextureLoader().load('./image/aristoles.png');tex.colorSpace=THREE.SRGBColorSpace;const material=new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:true});const sprite=new THREE.Sprite(material);sprite.position.set(0,4.2,-65.5);sprite.scale.set(8.5,8.5,1);scene.add(sprite);levelObjects.push(sprite);boss={sprite,hp:24,maxHp:24,attackTimer:2,active:true};toast('CHEFÃO: ARISTÓLES // A FILOSOFIA VAI TE MATAR',4)}
-function startLevel(name){currentLevel=name;$('menu').style.display='none';$('layers').style.display='none';$('hud').style.display='block';started=true;paused=false;clearLevel();powered=false;combat=false;kills=0;boss=null;progressStage=0;player.health=100;player.weapon=false;player.pos.set(0,8,7);player.vel.set(0,0,0);player.yaw=0;player.pitch=0;player.grounded=false;player.slide=false;player.slamming=false;player.slamUsed=false;revolver.visible=false;rightHand.visible=false;camera.add(revolver);revolver.position.set(.28,-.25,-.55);revolver.rotation.set(.05,Math.PI,0);leftHand.visible=true;leftHand.position.set(-.42,-.34,-.72);
+function spawnWave(stage){
+ const waves={
+  0:[[-4,-12],[4,-14],[-1,-18],[2,-20]],
+  1:[[-8,-27],[-4,-31],[4,-29],[8,-34],[0,-36]],
+  2:[[-9,-50],[-5,-54],[0,-58],[5,-54],[9,-61],[-1,-64]],
+  3:[[-7,-75],[0,-77],[7,-75],[-3,-79],[4,-80]]
+ };
+ (waves[stage]||[]).forEach(([x,z])=>makeEnemy(x,z));
+ toast(['SEÇÃO 1 // ENTRADA HOSTIL','SEÇÃO 2 // ARSENAL E COBERTURA','SEÇÃO 3 // USINA DE PROCESSAMENTO','SEÇÃO 4 // PONTE PARA A ARENA'][stage]||'ÁREA LIMPA',2.4)
+}
+function livingEnemies(){return enemyList.some(e=>e.hp>0)}
+function spawnAristoles(){if(boss)return;const tex=new THREE.TextureLoader().load('./image/aristoles.png');tex.colorSpace=THREE.SRGBColorSpace;const material=new THREE.SpriteMaterial({map:tex,transparent:true,depthTest:false});const sprite=new THREE.Sprite(material);sprite.position.set(0,5.1,-83);sprite.scale.set(11,11,1);sprite.renderOrder=5;scene.add(sprite);levelObjects.push(sprite);boss={sprite,hp:40,maxHp:40,attackTimer:1.5,active:true};toast('CHEFÃO: ARISTÓLES // REFUTE A ESTÁTUA',4)}
+function startLevel(name){currentLevel=name;$('menu').style.display='none';$('layers').style.display='none';$('hud').style.display='block';started=true;paused=false;clearLevel();powered=false;combat=false;kills=0;boss=null;progressStage=0;player.health=100;player.weapon=false;player.pos.set(0,8,7);player.vel.set(0,0,0);player.yaw=0;player.pitch=0;player.grounded=false;player.slide=false;player.slamming=false;player.slamUsed=false;revolver.visible=false;rightHand.visible=false;leftHand.visible=true;camera.add(revolver);revolver.position.set(.28,-.25,-.55);revolver.rotation.set(.05,Math.PI,0);leftHand.visible=true;leftHand.position.set(-.48,-.38,-.82);rightHand.position.set(.42,-.39,-.72);
   if(name==='preludio')buildPreludio({scene,box,cyl,mat,materials:{concrete,dark,metal,red,glow},addLight,levelObjects,player,weapon:revolver});
   else buildLimbo({scene,box,cyl,mat,materials:{concrete,dark,metal,red,glow},addLight,levelObjects,player,weapon:revolver});
   camera.position.copy(player.pos);renderer.domElement.requestPointerLock?.();toast('QUEDA LIVRE. PROCURE A ARMA.',2.5)}
@@ -72,23 +82,41 @@ function update(dt){if(!started||paused)return;shootCD=Math.max(0,shootCD-dt);if
   if(player.slide&&player.grounded){if(move.lengthSq())player.vel.addScaledVector(move,28*dt);const h=new THREE.Vector3(player.vel.x,0,player.vel.z);if(h.length()>22)h.setLength(22);player.vel.x=h.x;player.vel.z=h.z;player.pos.y=1.05}else{const target=move.clone().multiplyScalar(keys.ShiftLeft?17:12.5);player.vel.x=THREE.MathUtils.damp(player.vel.x,target.x,player.grounded?13:3.5,dt);player.vel.z=THREE.MathUtils.damp(player.vel.z,target.z,player.grounded?13:3.5,dt);if(player.grounded)player.pos.y=1.7}
   player.vel.y-=player.slamming?0:27*dt;const oldY=player.pos.y;player.pos.addScaledVector(player.vel,dt);
   if(player.slamming&&player.pos.y<=1.7&&oldY>1.7)landSlam();
-  else if(player.pos.y<=1.7){player.pos.y=1.7;if(player.vel.y<0)player.vel.y=0;player.grounded=true;player.slamming=false;player.slamUsed=false}
+  else if(player.pos.y<=1.7 && !(player.pos.z < -99 && player.pos.z > -108)){player.pos.y=1.7;if(player.vel.y<0)player.vel.y=0;player.grounded=true;player.slamming=false;player.slamUsed=false}
   else player.grounded=false;
   // Wall collision and wall-jump surfaces.
-  const xLimit=player.pos.z < -35 ? 8.1 : 3.5;if(player.pos.x < -xLimit){player.pos.x=-xLimit;if(player.vel.x<0)player.vel.x=0}if(player.pos.x>xLimit){player.pos.x=xLimit;if(player.vel.x>0)player.vel.x=0}
-  player.pos.z=THREE.MathUtils.clamp(player.pos.z,-90,14);
+  const xLimit=player.pos.z < -80 ? 12.8 : player.pos.z < -45 ? 11.8 : player.pos.z < -22 ? 10.2 : 7.9;if(player.pos.x < -xLimit){player.pos.x=-xLimit;if(player.vel.x<0)player.vel.x=0}if(player.pos.x>xLimit){player.pos.x=xLimit;if(player.vel.x>0)player.vel.x=0}
+  player.pos.z=THREE.MathUtils.clamp(player.pos.z,-112,14);
   if(player.pos.y>1.7&&Math.abs(player.pos.x)>(player.pos.z < -35 ? 7.8 : 3.25)&&keys.Space&&performance.now()-player.wallJumpAt>180){player.vel.y=10;player.vel.x=-Math.sign(player.pos.x)*10;player.wallJumpAt=performance.now()}
-  if(combat&&player.weapon){if(progressStage===0&&player.pos.z<-22){progressStage=1;spawnWave(1)}if(progressStage===1&&player.pos.z<-39){progressStage=2;spawnWave(2)}if(progressStage===2&&player.pos.z<-55){progressStage=3;spawnAristoles()}}
+  if(combat&&player.weapon){
+   const gates=[-22,-45,-70,-80];
+   if(progressStage<4&&player.pos.z<gates[progressStage]){
+     if(livingEnemies()){player.pos.z=gates[progressStage]+.6;player.vel.z=Math.max(0,player.vel.z);if(!window.__gateToast){toast('ÁREA EM COMBATE // ELIMINE OS HOSTIS PARA AVANÇAR',1.5);window.__gateToast=true}}
+     else {window.__gateToast=false;progressStage++;if(progressStage<4)spawnWave(progressStage);else spawnAristoles()}
+   }
+  }
   // Aristóles protege a passagem para o poço final até ser derrotado.
-  if(boss?.active&&player.pos.z<-59){player.pos.z=-59;player.vel.z=Math.max(0,player.vel.z);boss.attackTimer-=dt;if(boss.attackTimer<=0){boss.attackTimer=1.8;player.health=Math.max(0,player.health-7);toast('ARISTÓLES: SILÊNCIO, MORTAL.',1.2);if(player.health<=0){player.health=100;player.pos.set(0,1.7,5);toast('RECONSTRUÇÃO DO CORPO: TENTE OUTRA VEZ',2)}}}
-  if(player.pos.z < -76 && player.pos.y < 1.2){if(boss?.active){player.pos.z=-75.5;player.pos.y=1.7;player.vel.y=0;toast('DERROTE ARISTÓLES PARA LIBERAR A DESCIDA.',2);return}toast('PRELÚDIO CONCLUÍDO // DESCIDA AUTORIZADA',4);started=false;paused=true;setTimeout(()=>{document.exitPointerLock?.();$('hud').style.display='none';$('menu').style.display='grid';$('pause').style.display='none';paused=false},2200);return}
+  if(boss?.active&&player.pos.z<-79){player.pos.z=-79;player.vel.z=Math.max(0,player.vel.z);boss.attackTimer-=dt;if(boss.attackTimer<=0){boss.attackTimer=1.8;player.health=Math.max(0,player.health-7);toast('ARISTÓLES: SILÊNCIO, MORTAL.',1.2);if(player.health<=0){player.health=100;player.pos.set(0,1.7,5);toast('RECONSTRUÇÃO DO CORPO: TENTE OUTRA VEZ',2)}}}
+  if(player.pos.z < -99 && player.pos.y < -1){if(boss?.active){player.pos.z=-75.5;player.pos.y=1.7;player.vel.y=0;toast('DERROTE ARISTÓLES PARA LIBERAR A DESCIDA.',2);return}toast('PRELÚDIO CONCLUÍDO // DESCIDA AUTORIZADA',4);started=false;paused=true;setTimeout(()=>{document.exitPointerLock?.();$('hud').style.display='none';$('menu').style.display='grid';$('pause').style.display='none';paused=false},2200);return}
   camera.position.copy(player.pos);
   revolver.position.x=THREE.MathUtils.damp(revolver.position.x,.28,18,dt);revolver.position.y=THREE.MathUtils.damp(revolver.position.y,-.25,18,dt);revolver.position.z=THREE.MathUtils.damp(revolver.position.z,-.55,18,dt);
-  leftHand.position.x=THREE.MathUtils.damp(leftHand.position.x,-.42,18,dt);leftHand.position.y=THREE.MathUtils.damp(leftHand.position.y,punchAnim>0?-.12:-.34,22,dt);leftHand.position.z=THREE.MathUtils.damp(leftHand.position.z,punchAnim>0?-.95:-.72,22,dt);leftHand.rotation.y=THREE.MathUtils.damp(leftHand.rotation.y,punchAnim>0?-.5:0,18,dt);leftHand.rotation.x=THREE.MathUtils.damp(leftHand.rotation.x,punchAnim>0?-.4:0,18,dt);
+  leftHand.visible=true;leftHand.position.x=THREE.MathUtils.damp(leftHand.position.x,-.48,18,dt);leftHand.position.y=THREE.MathUtils.damp(leftHand.position.y,punchAnim>0?-.08:-.38,22,dt);leftHand.position.z=THREE.MathUtils.damp(leftHand.position.z,punchAnim>0?-1.0:-.82,22,dt);leftHand.rotation.y=THREE.MathUtils.damp(leftHand.rotation.y,punchAnim>0?-.5:0,18,dt);leftHand.rotation.x=THREE.MathUtils.damp(leftHand.rotation.x,punchAnim>0?-.4:0,18,dt);
   if(!powered&&player.pos.y<1.8&&player.pos.z>-70){player.pos.y=1.7;player.vel.y=0;player.grounded=true;toast('LEVANTE-SE E PROCURE O REVÓLVER [E]',2)}
   if(!player.weapon){rightHand.visible=false;const near=player.pos.distanceTo(new THREE.Vector3(0,1.7,-3.5))<2.3;$('prompt').textContent=near?'[ E ] PEGAR REVÓLVER':'';if(near&&keys.KeyE){player.weapon=true;revolver.visible=true;rightHand.visible=true;if(scene.userData.pickupModel){scene.remove(scene.userData.pickupModel);scene.userData.pickupModel=null}activatePower();toast('ARMA ADQUIRIDA. AGORA FICOU CLARO.',2.4)}}
   if(keys.KeyE&&!player.weapon&&player.pos.distanceTo(new THREE.Vector3(0,1.7,-3.5))<2.3){keys.KeyE=false}
-  if(combat)for(const e of enemyList){if(e.hp<=0){e.group.visible=false;continue}animateCreature(e,dt,player.pos);const d=player.pos.clone().sub(e.group.position),dist=d.length();if(dist>1.55){e.group.position.x+=d.x/dist*e.speed*dt;e.group.position.z+=d.z/dist*e.speed*dt}e.attack-=dt;if(dist<1.8&&e.attack<=0){player.health=Math.max(0,player.health-9);e.attack=.75;if(player.health===0){player.health=100;player.pos.set(0,1.7,5);toast('RECONSTRUÇÃO DO CORPO: FALHA HUMILHANTE',2)}}if(e.hit>0){e.hit-=dt;e.group.scale.setScalar(1+Math.sin(e.hit*55)*.09)}else e.group.scale.setScalar(1)}
+  if(combat)for(const e of enemyList){
+   if(e.hp<=0){e.group.visible=false;continue}
+   const d=player.pos.clone().sub(e.group.position);d.y=0;const dist=d.length();e.attack-=dt;
+   if(e.attackWindup>0){e.attackWindup-=dt;e.moving=false;if(e.attackWindup<=0){if(dist<2.7){player.health=Math.max(0,player.health-13);toast('GOLPE HOSTIL // -13 INTEGRIDADE',.7)}e.lunge=.22;e.attack=1.05+Math.random()*.3}}
+   else if(e.lunge>0){e.lunge-=dt;e.group.position.x+=Math.sin(e.group.rotation.y)*e.speed*2.2*dt;e.group.position.z+=Math.cos(e.group.rotation.y)*e.speed*2.2*dt;e.moving=true}
+   else if(dist>1.65){e.moving=true;const strafe=Math.sin(e.phase*1.4)*e.strafe;e.group.position.x+=(d.x/dist*e.speed+strafe)*dt;e.group.position.z+=d.z/dist*e.speed*dt;}
+   else {e.moving=false;if(e.attack<=0){e.attackWindup=.24;toast('INIMIGO PREPARANDO GOLPE',.45)}}
+   // Keep hostiles inside the visible combat space and give their walk cycle real speed input.
+   const xBound=e.group.position.z<-80?12.3:e.group.position.z<-45?11.2:e.group.position.z<-22?9.6:7.3;e.group.position.x=THREE.MathUtils.clamp(e.group.position.x,-xBound,xBound);
+   animateCreature(e,dt,player.pos);
+   if(e.hit>0){e.hit-=dt;e.group.scale.setScalar(1+Math.sin(e.hit*55)*.07)}else e.group.scale.setScalar(1);
+   if(player.health<=0){player.health=100;player.pos.set(0,1.7,5);player.vel.set(0,0,0);toast('RECONSTRUÇÃO DO CORPO: TENTE OUTRA VEZ',2)}
+  }
   for(let i=effects.length-1;i>=0;i--){let e=effects[i];e.life-=dt;e.mesh.position.addScaledVector(e.vel,dt);e.vel.y-=9*dt;if(e.life<=0){scene.remove(e.mesh);effects.splice(i,1)}}
   $('stats').innerHTML=`${player.health}<small>INTEGRIDADE · ${kills} ELIMINADOS${charging?' · CARGA '+Math.min(100,Math.round(chargeTime/0.9*100))+'%':''}</small>`;
 }

@@ -1,39 +1,59 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 import {createRevolver} from '../modelos/revolver.js';
+
+// PRELÚDIO: sequência linear de espaços legíveis, com variação de escala e ritmo.
 export function buildPreludio(w){
  const {scene,box,cyl,mat,materials:m,addLight,levelObjects}=w;
  const add=o=>(levelObjects.push(o),o);
- // Brutalist tunnel with dark red industrial accents, ceiling aperture above the drop-in.
- add(box(9,.5,53,m.concrete,0,-.35,-10.5)); // corredor inicial
- add(box(18,.5,36,m.concrete,0,-.35,-55)); // arena
- add(box(18,.5,5,m.concrete,0,-.35,-74.5)); // plataforma antes do poço
- // Poço final aberto: sem piso entre z=-77 e z=-88
- add(box(9,.4,100,m.dark,0,5.7,-34));
- add(box(9,.3,12,m.dark,0,5.45,10)); // lip around ceiling hole; aperture is behind the player
- add(box(4.1,.3,7,m.dark,-2.45,5.45,5)); add(box(4.1,.3,7,m.dark,2.45,5.45,5));
- add(box(.45,5.8,100,m.concrete,-4.4,2.45,-34));add(box(.45,5.8,100,m.concrete,4.4,2.45,-34));
- for(let z=13;z>-76;z-=4){
-  add(box(9,.22,.32,m.metal,0,5.2,z));add(box(.16,5.3,.18,m.dark,-4,2.2,z));add(box(.16,5.3,.18,m.dark,4,2.2,z));
-  if(z%8===1){add(box(.12,.025,2,m.red,-3.95,.01,z));add(box(.12,.025,2,m.red,3.95,.01,z))}
-  if(z%12===1){const l=addLight(0,4.5,z,0x7b0c20,.25,9);add(box(.7,.07,.2,m.metal,0,4.78,z))}
+ const floor=(x,z,width,depth,material=m.concrete)=>add(box(width,.55,depth,material,x,-.28,z));
+ const wall=(x,z,height,depth=8,material=m.concrete,width=.45)=>add(box(width,height,depth,material,x,height/2-.05,z));
+ const stripe=(x,z,width=1.4)=>add(box(width,.025,.16,m.red,x,.015,z));
+ const lamp=(x,z,color=0xffd0c7)=>{addLight(x,4.7,z,color,1.7,15);add(box(.8,.12,.35,m.metal,x,5.05,z));add(box(.55,.06,.22,new THREE.MeshBasicMaterial({color:0xffe9dc}),x,4.96,z))};
+ // Section 1 — entry / weapon acquisition. Open ceiling and clear silhouette.
+ floor(0,1,18,24); wall(-9,1,6,24); wall(9,1,6,24);
+ floor(0,-16,18,12); wall(-9,-16,6,12); wall(9,-16,6,12);
+ for(let z=9;z>-22;z-=6){lamp(-5.8,z);lamp(5.8,z,0xff354c);stripe(-7.7,z,1.3);stripe(7.7,z,1.3)}
+ // Weapon pedestal and readable pickup.
+ add(cyl(.82,.96,.25,m.metal,0,.12,-3.5,scene,16));add(cyl(.58,.72,.22,m.dark,0,.34,-3.5,scene,16));add(box(.85,.09,.55,m.metal,0,.49,-3.5));add(box(.16,.38,.16,m.metal,0,.72,-3.5));add(box(.62,.06,.5,m.red,0,.94,-3.5));
+ const pickup=createRevolver();pickup.position.set(0,1.23,-3.5);pickup.rotation.set(.04,Math.PI,0);scene.add(pickup);add(pickup);scene.userData.pickupModel=pickup;
+ const halo=add(new THREE.Mesh(new THREE.TorusGeometry(.48,.025,6,32),new THREE.MeshBasicMaterial({color:0xff2538})));halo.rotation.x=Math.PI/2;halo.position.set(0,1.15,-3.5);addLight(0,1.8,-3.5,0xff1735,1.4,7);
+ // Section 2 — armory / staggered cover, not a single narrow corridor.
+ floor(0,-30,22,18);wall(-11,-30,6,18);wall(11,-30,6,18);
+ for(const x of [-7,7]){add(box(1.25,3.5,1.25,m.metal,x,1.5,-25));add(box(1.55,.16,1.55,m.red,x,3.32,-25));add(box(1.25,3.5,1.25,m.metal,x,1.5,-34));}
+ for(const x of [-8,8]){add(box(2.5,1.2,1.2,m.dark,x, .55,-29));add(box(2.5,.08,1.2,m.metal,x,.2,-29));}
+ for(const z of [-24,-30,-36]){lamp(-4,z,0xffb5bd);lamp(4,z,0xd2dcff);}
+ // Transition vestibule with a visible frame and side alcoves.
+ floor(0,-43,16,10);wall(-8,-43,6,10);wall(8,-43,6,10);
+ for(const x of [-6.5,6.5]){add(box(.5,5,.5,m.dark,x,2.4,-43));add(box(.12,4.5,.12,m.glow,x,2.4,-43));}
+ add(box(13,.15,.35,m.metal,0,4.9,-43));lamp(0,-43,0xff263d);
+ // Section 3 — machine hall, wider and taller, with visible pillars and side machinery.
+ floor(0,-57,26,20);wall(-13,-57,7,20);wall(13,-57,7,20);
+ for(const z of [-50,-57,-64])for(const x of [-9,9]){
+  add(box(1.25,4.4,1.25,m.metal,x,2.1,z));add(box(1.65,.18,1.65,m.red,x,4.3,z));
+  add(box(.22,2.2,.22,m.glow,x,1.4,z));
  }
- for(let side of [-1,1])for(let z=8;z>-70;z-=7){add(box(.2,1.5,1.3,m.dark,side*3.9,1,z));add(box(.08,1.1,.8,m.metal,side*3.78,1,z));add(cyl(.055,.055,2.5,m.metal,side*3.5,3,z));}
- // Door frame and arena throat.
- add(box(8,4.8,.35,m.dark,0,2.3,-12));add(box(.14,4.2,.14,m.glow,-3.8,2.2,-12));add(box(.14,4.2,.14,m.glow,3.8,2.2,-12));
- add(box(18,.5,36,m.dark,0,6.5,-55));add(box(.5,6.5,36,m.concrete,-9,2.7,-55));add(box(.5,6.5,36,m.concrete,9,2.7,-55));
- for(let z=-35;z>-74;z-=8){for(let x of [-6,-3,0,3,6])add(box(.5,.07,.4,m.red,x,.05,z));addLight(0,4,z,0xff142a,0,16)}
- for(let i=0;i<36;i++){let x=(Math.random()-.5)*7,z=3-Math.random()*68,s=.1+Math.random()*.28;let r=add(box(s,s*.5,s,i%3?m.dark:m.concrete,x,s*.25,z));r.rotation.y=Math.random()*3}
- // Pedestal and physical pickup model.
- add(cyl(.68,.78,.24,m.metal,0,.12,-3.5,scene,16));add(cyl(.5,.58,.2,m.dark,0,.32,-3.5,scene,16));add(box(.76,.08,.5,m.metal,0,.46,-3.5));add(box(.14,.42,.14,m.metal,0,.7,-3.5));add(box(.52,.06,.45,m.red,0,.94,-3.5));
- const pickup=createRevolver();pickup.position.set(0,1.22,-3.5);pickup.rotation.set(.04,Math.PI,0);scene.add(pickup);add(pickup);
- const halo=add(new THREE.Mesh(new THREE.TorusGeometry(.44,.025,6,32),new THREE.MeshBasicMaterial({color:0xff2538})));halo.rotation.x=Math.PI/2;halo.position.set(0,1.15,-3.5);
- const pl=addLight(0,1.8,-3.5,0xa90d25,.6,5);scene.userData.pickupModel=pickup;
- // Ambient accent strips and practical lights.
- for(let z=7;z>-76;z-=8){add(box(.12,.04,3,m.red,-3.8,.02,z));add(box(.12,.04,3,m.red,3.8,.02,z));addLight(0,3.7,z,0xffd1d6,.8,13)}
- // Arena cover, pillars, hazard markings and a readable final drop.
- for(let z=-39;z>-69;z-=10){for(let x of [-7,7]){add(box(.8,3,.8,m.metal,x,1.25,z));add(box(1.1,.15,1.1,m.red,x,2.85,z))}}
- for(let x=-6;x<=6;x+=2){add(box(1,.06,.35,m.red,x,.01,-72.2));}
- add(box(18,.35,.25,m.red,0,5.8,-77));addLight(0,1.5,-77,0xff001f,2.5,15);
- // extra industrial lights keep enemies and geometry readable
- for(let z=-20;z>-73;z-=9){addLight(-3.2,3.2,z,0xffa4ac,.55,10);addLight(3.2,3.2,z,0xb5caff,.5,10)}
+ for(const x of [-11,11])for(const z of [-51,-59,-67]){add(box(1.3,2.3,1.1,m.dark,x,.95,z));add(box(1.4,.12,1.2,m.metal,x,2.1,z));}
+ for(const z of [-49,-57,-65]){lamp(-4,z,0xffc3c9);lamp(4,z,0xb9d3ff);for(let x=-8;x<=8;x+=2)stripe(x,z,1.1)}
+ // Section 4 — bridge and boss arena, broad sightlines; no overlapping hidden walls.
+ floor(0,-74,22,14);wall(-11,-74,7,14);wall(11,-74,7,14);
+ floor(0,-87,28,18);wall(-14,-87,8,18);wall(14,-87,8,18);
+ // Boss plinth and arena markings.
+ add(cyl(3.2,3.6,.5,m.dark,0,.15,-83,scene,24));add(cyl(2.7,3.1,.18,m.red,0,.48,-83,scene,24));
+ for(let x=-10;x<=10;x+=2)stripe(x,-91,1.25);
+ for(const x of [-9,9]){add(box(1.1,5,1.1,m.metal,x,2.35,-82));add(box(1.4,.16,1.4,m.red,x,4.85,-82));lamp(x,-82,x<0?0xff263d:0xffc4ca)}
+ addLight(0,5,-82,0xff142a,3.2,24);
+ // Exit ledge. The missing floor from z=-98 to -108 is the actual drop.
+ floor(0,-97,18,6);wall(-9,-97,5,6);wall(9,-97,5,6);
+ add(box(18,.2,.25,m.red,0,5.1,-99));addLight(0,1.5,-99,0xff001f,2.8,18);
+ // Industrial ceiling sections stop before each room, so beams/pillars remain visible.
+ for(const [z,width,depth] of [[1,18,22],[-16,18,10],[-30,22,16],[-43,16,8],[-57,26,18],[-74,22,12],[-87,28,16]]){
+  add(box(width,.35,depth,m.dark,0,6.7,z));
+  for(const x of [-width/2+1,width/2-1])add(box(.18,.18,depth,m.metal,x,6.48,z));
+ }
+ // Exposed conduits and floor debris add scale without blocking the player or hiding pillars.
+ for(const side of [-1,1])for(let z=5;z>-94;z-=7){
+  const x=side*(z<-45?11.7:z<-25?9.8:7.8);
+  add(box(.14,.14,3.4,m.metal,x,4.85,z));add(box(.18,.55,.18,m.red,x,4.45,z));
+ }
+ for(let i=0;i<42;i++){const z=4-Math.random()*96;const width=z<-75?12:z<-45?11:z<-23?9:7;const x=(Math.random()*2-1)*width;const s=.12+Math.random()*.24;const debris=add(box(s,s*.45,s,m.dark,x,s*.23,z));debris.rotation.y=Math.random()*Math.PI;}
 }
